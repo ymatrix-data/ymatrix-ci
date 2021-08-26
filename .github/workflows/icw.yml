@@ -128,12 +128,16 @@ jobs:
             setting: >-
               gp_enable_global_deadlock_detector=off
               enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
           - name: isolation2
             dir: src/test/isolation2
             target: installcheck
             setting: >-
               gp_enable_global_deadlock_detector=off
               enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
           - name: gdd
             dir: src/test/regress
             target: installcheck
@@ -141,6 +145,8 @@ jobs:
             setting: >-
               gp_enable_global_deadlock_detector=on
               enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
             regress_options: >-
               --ignore-plans
           - name: parallel-mpp
@@ -149,6 +155,8 @@ jobs:
             setting: >-
               gp_enable_global_deadlock_detector=off
               enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
             regress_options: >-
               --ignore-plans
           - name: parallel-legacy
@@ -159,6 +167,8 @@ jobs:
               enable_parallel_mode=on
               parallel_setup_cost=0
               parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
             regress_options: >-
               --ignore-plans
 
