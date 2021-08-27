@@ -130,6 +130,7 @@ jobs:
               enable_parallel_mode=off
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
           - name: isolation2
             dir: src/test/isolation2
             target: installcheck
@@ -138,6 +139,7 @@ jobs:
               enable_parallel_mode=off
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
           - name: gdd
             dir: src/test/regress
             target: installcheck
@@ -147,6 +149,7 @@ jobs:
               enable_parallel_mode=off
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
           - name: parallel-mpp
@@ -157,6 +160,7 @@ jobs:
               enable_parallel_mode=on
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
           - name: parallel-legacy
@@ -169,6 +173,7 @@ jobs:
               parallel_tuple_cost=0
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
 
