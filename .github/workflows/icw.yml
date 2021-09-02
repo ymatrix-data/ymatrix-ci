@@ -176,6 +176,15 @@ jobs:
               log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
+        - name: partitionwise_parallel
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              enable_parallel_mode=on
+              enable_partitionwise_join=on
+              enable_partitionwise_aggregate=on
+            regress_options: >-
+              --ignore-plans
 
     name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
     runs-on: ${{ matrix.os }}
