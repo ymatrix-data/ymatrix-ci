@@ -176,7 +176,7 @@ jobs:
               log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
-        - name: partitionwise_parallel
+          - name: partitionwise_parallel
             dir: src/test/regress
             target: installcheck
             setting: >-
