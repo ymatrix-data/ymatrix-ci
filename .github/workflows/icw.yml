@@ -333,7 +333,7 @@ jobs:
           . ${PREFIX}/greenplum_path.sh
           . gpAux/gpdemo/gpdemo-env.sh
 
-          make -k PGOPTIONS="-c optimizer=${optimizer}" \
+          make -k PGOPTIONS="-c optimizer=${optimizer} -c gp_autostats_mode=on_no_stats" \
                -C ${{ matrix.testsuite.dir }} \
                ${{ matrix.testsuite.target }}
 
