@@ -82,6 +82,10 @@ jobs:
             --enable-ic-proxy \
             --without-quicklz \
             --disable-tap-tests \
+            --enable-enterprise \
+            --without-mysqlfdw \
+            --without-mongofdw \
+            --without-licensecheck \
             --enable-debug-extensions > /dev/null 2>&1
 
       - name: Compile
