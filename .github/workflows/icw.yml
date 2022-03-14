@@ -93,7 +93,6 @@ jobs:
         run: |
           sudo mkdir -p ${PREFIX}
           sudo chown $USER ${PREFIX}
-
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
 
           make -j2 install > /dev/null 2>&1
@@ -266,6 +265,7 @@ jobs:
           ./configure \
             --prefix=${PREFIX} \
             --with-perl \
+            --with-pg-hint-plan \
             --with-python \
             --disable-orca \
             --with-openssl \
@@ -287,6 +287,8 @@ jobs:
       - name: Make Regress.so
         run: |
           cd ${TOPDIR}
+          git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
+
           make -j2 -C src/test/regress > /dev/null 2>&1
 
       - name: Setup SSH
