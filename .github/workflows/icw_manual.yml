@@ -1,0 +1,402 @@
+name: MatrixDB_ICW_Manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      matrixdb_ref:
+        description: "MatrixDB Branch/Tag"
+        required: true
+        default: "master"
+
+env:
+  matrixdb_ref: "${{ github.event.inputs.matrixdb_ref || inputs.matrixdb_ref }}"
+  pipeline_id: 18
+  s3_bucket: matrixdb-public-ci-artifacts
+
+jobs:
+  start_pipeline:
+    runs-on: ubuntu-20.04
+    container:
+      image: docker.pkg.github.com/ymatrix-data/matrixdb-ci/psqlci:latest
+      credentials:
+        username: ${{ secrets.CI_USER }}
+        password: ${{ secrets.PAT }}
+    steps:
+      - run: |
+          psql -c "DELETE FROM pipeline_status WHERE pipeline_id = ${{env.pipeline_id}} AND run_number = ${{github.run_number}} AND run_id = ${{github.run_id}}"
+          psql -c "INSERT INTO pipeline_status(pipeline_id, run_number, run_id, event_dt, status, branch) VALUES(${{env.pipeline_id}}, ${{github.run_number}}, ${{github.run_id}}, now(), 'start', '${{env.matrixdb_ref}}')"
+
+  compile:
+    name: compile_ubuntu-20.04
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    needs: [start_pipeline]
+
+    env:
+      PREFIX: /usr/local/matrixdb
+      BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
+
+    steps:
+      - name: Checkout MatrixDB
+        uses: actions/checkout@v2
+        with:
+          ref: ${{env.matrixdb_ref}}
+          repository: ymatrix-data/matrixdb
+          token: ${{secrets.PAT}}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout CI
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          path: ci
+
+      - name: Install Depends
+        run: |
+          sudo ./ci/README.ubuntu.bash
+          sudo apt-get update
+          sudo apt-get install -y libldap2-dev libuv1-dev liblz4-dev
+
+          cd /tmp/
+          pkgname=apache-arrow-apt-source-latest-focal.deb
+          wget https://apache.jfrog.io/artifactory/arrow/ubuntu/$pkgname
+          sudo apt-get install -y ./$pkgname
+          sudo apt-get update
+          sudo apt-get install -y libarrow-dev libparquet-dev
+
+      - name: Configure
+        run: |
+          CFLAGS="-fdiagnostics-color=always" \
+          CXXFLAGS="-fdiagnostics-color=always" \
+          ./configure \
+            --prefix=${PREFIX} \
+            --with-perl \
+            --with-pg-hint-plan \
+            --with-python \
+            --disable-orca \
+            --with-openssl \
+            --with-ldap \
+            --with-libcurl \
+            --with-libxml \
+            --enable-mapreduce \
+            --enable-orafce \
+            --enable-ic-proxy \
+            --without-quicklz \
+            --disable-tap-tests \
+            --enable-enterprise \
+            --without-mysqlfdw \
+            --without-mongofdw \
+            --without-licensecheck \
+            --enable-debug-extensions > /dev/null 2>&1
+
+      - name: Compile
+        run: |
+          sudo mkdir -p ${PREFIX}
+          sudo chown $USER ${PREFIX}
+          git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
+          git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
+
+          make -j2 install > /dev/null 2>&1
+
+          git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
+          make -C contrib/mars unittest > /dev/null 2>&1
+          make -C contrib/mars -j2 install > /dev/null 2>&1
+
+      - name: Collect Binary
+        run: |
+          cd ${PREFIX}
+          tar zcf ${BIN_TARBALL} . > /dev/null 2>&1
+
+      - name: Setup s3cmd CLI Tool
+        uses: dbhao/s3cmd@main
+        with:
+          provider: aws
+          region: "cn-northwest-1"
+          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          host_base: "s3.cn-northwest-1.amazonaws.com.cn"
+
+      - name: Upload Binary
+        run: |
+          s3cmd put ${BIN_TARBALL} s3://${{env.s3_bucket}}/${{env.matrixdb_ref}}/
+
+  installcheck:
+    needs: [compile]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04]
+        optimizer: [planner]
+        testsuite:
+          - name: regress
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+          - name: isolation2
+            dir: src/test/isolation2
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+          - name: gdd
+            dir: src/test/regress
+            target: installcheck
+            more_ignore: ",cursor,index_constraint_naming_partition"
+            setting: >-
+              gp_enable_global_deadlock_detector=on
+              enable_parallel_mode=off
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-mpp
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-legacy
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              parallel_setup_cost=0
+              parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+
+    name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 100
+
+    env:
+      PREFIX: /usr/local/matrixdb
+      TOPDIR: /tmp/build/matrixdb
+      BLDWRAP_POSTGRES_CONF_ADDONS: "enable_mergejoin=off enable_nestloop=off ${{ matrix.testsuite.setting }}"
+      EXTRA_REGRESS_OPTS: "${{ matrix.testsuite.regress_options }} --exclude-tests=gp_metadata,eagerfree,gp_aggregates_costs,hooktest,workfile/sisc_mat_sort,workfile_mgr_test${{ matrix.testsuite.more_ignore }}"
+      BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
+      LOG_TARBALL: /tmp/log_matrixdb.tar.gz
+
+    steps:
+      - name: Checkout MatrixDB
+        uses: actions/checkout@v2
+        with:
+          ref: ${{env.matrixdb_ref}}
+          repository: ymatrix-data/matrixdb
+          token: ${{secrets.PAT}}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout CI
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          path: ci
+
+      - name: Install Depends
+        if: runner.os == 'Linux'
+        run: |
+          sudo ./ci/README.ubuntu.bash
+          sudo apt-get update -y
+          sudo apt-get install -y libldap2-dev libuv1-dev liblz4-dev
+          sudo pip3 install argparse psutil pygresql pyyaml
+
+          pkgname=apache-arrow-apt-source-latest-focal.deb
+
+          cd /tmp/
+          wget https://apache.jfrog.io/artifactory/arrow/ubuntu/$pkgname
+
+          sudo apt-get install -y ./$pkgname
+
+          sudo apt-get update
+          sudo apt-get install -y libarrow-dev libparquet-dev
+
+      - name: Setup s3cmd CLI Tool
+        uses: dbhao/s3cmd@main
+        with:
+          provider: aws
+          region: "cn-northwest-1"
+          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          host_base: "s3.cn-northwest-1.amazonaws.com.cn"
+
+      - name: Download Binary
+        uses: nick-invision/retry@v2
+        with:
+          timeout_seconds: 60
+          max_attempts: 5
+          retry_on: timeout
+          command: s3cmd get --force $(s3cmd ls s3://${{env.s3_bucket}}/${{env.matrixdb_ref}}/ | tail -1 | awk '{ print $4 }')
+
+      - name: Extract Binary
+        run: |
+          mv bin_matrixdb.tar.gz ${BIN_TARBALL}
+          sudo mkdir -p ${PREFIX}
+          sudo chown $USER ${PREFIX}
+          tar -zxf ${BIN_TARBALL} -C ${PREFIX}
+
+      - name: Configure
+        run: |
+          mkdir -p $(dirname $TOPDIR)
+          cp -a ${GITHUB_WORKSPACE} ${TOPDIR}
+          cd ${TOPDIR}
+          CFLAGS="-fdiagnostics-color=always" \
+          CXXFLAGS="-fdiagnostics-color=always" \
+          ./configure \
+            --prefix=${PREFIX} \
+            --with-perl \
+            --with-pg-hint-plan \
+            --with-python \
+            --disable-orca \
+            --with-openssl \
+            --with-ldap \
+            --with-libcurl \
+            --with-libxml \
+            --enable-mapreduce \
+            --enable-orafce \
+            --enable-ic-proxy \
+            --without-quicklz \
+            --disable-tap-tests \
+            --enable-debug-extensions > /dev/null 2>&1
+
+      - name: Generate Headers
+        run: |
+          cd ${TOPDIR}
+          make -j2 submake-generated-headers > /dev/null 2>&1
+
+      - name: Make Regress.so
+        run: |
+          cd ${TOPDIR}
+          git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
+          git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
+
+          make -j2 -C src/test/regress > /dev/null 2>&1
+
+      - name: Setup SSH
+        run: |
+          sudo chmod 755 ~
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          [ -e ~/.ssh/id_rsa ] || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa > /dev/null 2>&1
+          chmod 600 ~/.ssh/id_rsa
+          chmod 644 ~/.ssh/id_rsa.pub
+
+          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
+
+          ssh-keyscan $(hostname) >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Adjust Ulimit
+        run: |
+          sudo mkdir -p /etc/security/limits.d
+          sudo tee /etc/security/limits.d/99-matrixdb.conf <<EOF
+          * soft nproc 131072
+          * soft nofile 65536
+          gpadmin soft nproc 131072
+          gpadmin soft nofile 65536
+          EOF
+
+      - name: Create Cluster
+        uses: nick-invision/retry@v2
+        with:
+          timeout_seconds: 300
+          max_attempts: 3
+          retry_on: any
+          command: |
+            cd ${TOPDIR}
+            . ${PREFIX}/greenplum_path.sh
+            make -C gpAux/gpdemo cluster > /dev/null 2>&1
+
+      - name: Run Tests
+        timeout-minutes: 60
+        run: |
+          cd ${TOPDIR}
+
+          if [ ${{ matrix.optimizer }} = planner ]; then
+            optimizer=off
+          else
+            optimizer=on
+          fi
+
+          . ${PREFIX}/greenplum_path.sh
+          . gpAux/gpdemo/gpdemo-env.sh
+
+          make -k PGOPTIONS="-c optimizer=${optimizer} -c gp_autostats_mode=on_no_stats" \
+               -C ${{ matrix.testsuite.dir }} \
+               ${{ matrix.testsuite.target }}
+
+      - name: Show Diffs
+        if: failure()
+        run: |
+          cd ${TOPDIR}
+          find -name regression.diffs \
+          | while read -r file; do
+              echo "======================================================================"
+              echo "DIFF FILE: $file"
+              echo "----------------------------------------------------------------------"
+              echo
+              cat $file
+              echo
+            done
+
+  report_on_success:
+    if: ${{ success() }}
+    needs: [start_pipeline, compile, installcheck]
+    runs-on: ubuntu-20.04
+    container:
+      image: docker.pkg.github.com/ymatrix-data/matrixdb-ci/psqlci:latest
+      credentials:
+        username: ${{ secrets.CI_USER }}
+        password: ${{ secrets.PAT }}
+    steps:
+      - run: |
+          psql -c "INSERT INTO pipeline_status(pipeline_id, run_number, run_id, event_dt, status, branch) VALUES(${{env.pipeline_id}}, ${{github.run_number}}, ${{github.run_id}}, now(), 'done', '${{env.matrixdb_ref}}')"
+
+  report_on_cancel:
+    if: ${{ cancelled() }}
+    needs: [start_pipeline, compile, installcheck]
+    runs-on: ubuntu-20.04
+    container:
+      image: docker.pkg.github.com/ymatrix-data/matrixdb-ci/psqlci:latest
+      credentials:
+        username: ${{ secrets.CI_USER }}
+        password: ${{ secrets.PAT }}
+    steps:
+      - run: |
+          psql -c "INSERT INTO pipeline_status(pipeline_id, run_number, run_id, event_dt, status, branch) VALUES(${{env.pipeline_id}}, ${{github.run_number}}, ${{github.run_id}}, now(), 'cancel', '${{env.matrixdb_ref}}')"
+
+  report_on_failure:
+    if: ${{ failure() }}
+    needs: [start_pipeline, compile, installcheck]
+    runs-on: ubuntu-20.04
+    container:
+      image: docker.pkg.github.com/ymatrix-data/matrixdb-ci/psqlci:latest
+      credentials:
+        username: ${{ secrets.CI_USER }}
+        password: ${{ secrets.PAT }}
+    steps:
+      - run: |
+          psql -c "INSERT INTO pipeline_status(pipeline_id, run_number, run_id, event_dt, status, branch) VALUES(${{env.pipeline_id}}, ${{github.run_number}}, ${{github.run_id}}, now(), 'error', '${{env.matrixdb_ref}}')"
