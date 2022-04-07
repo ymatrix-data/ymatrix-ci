@@ -7,7 +7,7 @@ on:
     inputs:
 
 env:
-  matrixdb_ref: master
+  matrixdb_ref: mars2_random_io
   pipeline_id: 13
   s3_bucket: matrixdb-public-ci-artifacts
 
