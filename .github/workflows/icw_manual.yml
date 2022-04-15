@@ -139,6 +139,8 @@ jobs:
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
               log_min_duration_statement=-1
+              gp_log_fts=debug
+              log_checkpoints=on
           - name: isolation2
             dir: src/test/isolation2
             target: installcheck
