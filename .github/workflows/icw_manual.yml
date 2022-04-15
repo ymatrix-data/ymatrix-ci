@@ -141,6 +141,7 @@ jobs:
               log_min_duration_statement=-1
               gp_log_fts=debug
               log_checkpoints=on
+              gp_fts_mark_mirror_down_grace_period=120
           - name: isolation2
             dir: src/test/isolation2
             target: installcheck
