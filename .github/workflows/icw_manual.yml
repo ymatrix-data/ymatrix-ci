@@ -139,8 +139,6 @@ jobs:
               enable_partitionwise_join=off
               enable_partitionwise_aggregate=off
               log_min_duration_statement=-1
-              gp_log_fts=debug
-              log_checkpoints=on
               gp_fts_mark_mirror_down_grace_period=120
           - name: isolation2
             dir: src/test/isolation2
@@ -199,7 +197,6 @@ jobs:
       EXTRA_REGRESS_OPTS: "${{ matrix.testsuite.regress_options }} --exclude-tests=gp_metadata,eagerfree,gp_aggregates_costs,hooktest,workfile/sisc_mat_sort,workfile_mgr_test${{ matrix.testsuite.more_ignore }}"
       BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
       LOG_TARBALL: /tmp/log_matrixdb.tar.gz
-      RESULT_TARBALL: /tmp/result_matrixdb.tar.gz
 
     steps:
       - name: Checkout MatrixDB
@@ -378,20 +375,6 @@ jobs:
         with:
           name: log_matrixdb_${{matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
           path: ${{ env.LOG_TARBALL }}
-          #if-no-files-found: error
-          retention-days: 2
-          
-      - name: collect results
-        run: |
-          cd ${TOPDIR}
-          find -type d -name results \
-          | xargs tar zcf ${{ env.RESULT_TARBALL }}
-
-      - name: upload logs
-        uses: actions/upload-artifact@v2
-        with:
-          name: result_matrixdb_${{matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
-          path: ${{ env.RESULT_TARBALL }}
           #if-no-files-found: error
           retention-days: 2
 
