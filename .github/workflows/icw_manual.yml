@@ -344,6 +344,9 @@ jobs:
           . ${PREFIX}/greenplum_path.sh
           . gpAux/gpdemo/gpdemo-env.sh
 
+          gpconfig -c gp_fts_mark_mirror_down_grace_period -v 240
+          gpstop -arf
+
           make -k PGOPTIONS="-c optimizer=${optimizer} -c gp_autostats_mode=on_no_stats" \
                -C ${{ matrix.testsuite.dir }} \
                ${{ matrix.testsuite.target }}
