@@ -331,7 +331,7 @@ jobs:
             make -C gpAux/gpdemo cluster > /dev/null 2>&1
 
       - name: Run Tests
-        timeout-minutes: 60
+        timeout-minutes: 120
         run: |
           cd ${TOPDIR}
 
