@@ -328,7 +328,7 @@ jobs:
           command: |
             cd ${TOPDIR}
             . ${PREFIX}/greenplum_path.sh
-            make -C gpAux/gpdemo cluster > /dev/null 2>&1
+            make -C gpAux/gpdemo cluster
 
       - name: Run Tests
         timeout-minutes: 120
