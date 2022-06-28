@@ -129,6 +129,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04]
         optimizer: [planner]
+        locale: ['C', 'en_US.utf8']
         testsuite:
           - name: regress
             dir: src/test/regress
@@ -185,7 +186,7 @@ jobs:
             regress_options: >-
               --ignore-plans
 
-    name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
+    name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}_${{ matrix.locale }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
 
@@ -328,7 +329,7 @@ jobs:
           command: |
             cd ${TOPDIR}
             . ${PREFIX}/greenplum_path.sh
-            make -C gpAux/gpdemo cluster > /dev/null 2>&1
+            LOCALE_SETTING=${{ matrix.locale }} make -C gpAux/gpdemo cluster > /dev/null 2>&1
 
       - name: Run Tests
         timeout-minutes: 60
