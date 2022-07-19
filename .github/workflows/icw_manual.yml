@@ -97,7 +97,7 @@ jobs:
           sudo mkdir -p ${PREFIX}
           sudo chown $USER ${PREFIX}
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
-          git submodule update --init --recursive
+          git submodule update --init --recursive > /dev/null 2>&1
 
           make -j2 install > /dev/null 2>&1
           make -C contrib/mars -j2 install > /dev/null 2>&1
