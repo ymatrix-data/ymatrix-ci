@@ -86,7 +86,6 @@ jobs:
             --enable-mapreduce \
             --enable-orafce \
             --enable-ic-proxy \
-            --enable-mxvector \
             --without-quicklz \
             --disable-tap-tests \
             --without-licensecheck \
