@@ -97,7 +97,7 @@ jobs:
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan 
 
-          make -j2 install > 
+          make -j2 install  
           git submodule update --init --recursive -- contrib/mars 
           make -C contrib/mars unittest 
           make -C contrib/mars -j2 install 
