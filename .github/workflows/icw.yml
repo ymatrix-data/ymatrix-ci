@@ -89,20 +89,20 @@ jobs:
             --without-quicklz \
             --disable-tap-tests \
             --without-licensecheck \
-            --enable-debug-extensions
+            --enable-debug-extensions > /dev/null 2>&1
 
       - name: Compile
         run: |
           sudo mkdir -p ${PREFIX}
           sudo chown $USER ${PREFIX}
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
-          git submodule update --init --recursive -- contrib/pg_hint_plan
-          git submodule update --init -- src/backend/utils/matrixdb/superfast
+          git submodule update --init --recursive -- contrib/pg_hint_plani > /dev/null 2>&1
+          git submodule update --init -- src/backend/utils/matrixdb/superfast > /dev/null 2>&1
 
-          make -j2 install
+          make -j2 install > /dev/null 2>&1
 
-          git submodule update --init --recursive -- contrib/mars
-          make -C contrib/mars -j2 install
+          git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
+          make -C contrib/mars -j2 install > /dev/null 2>&1
 
       - name: Collect Binary
         run: |
@@ -280,6 +280,7 @@ jobs:
             --enable-ic-proxy \
             --without-quicklz \
             --disable-tap-tests \
+            --enable-mxvector \
             --enable-debug-extensions > /dev/null 2>&1
 
       - name: Generate Headers
