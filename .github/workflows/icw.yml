@@ -96,12 +96,12 @@ jobs:
           sudo mkdir -p ${PREFIX}
           sudo chown $USER ${PREFIX}
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
-          git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
+          git submodule update --init --recursive -- contrib/pg_hint_plan
 
-          make -j2 install > /dev/null 2>&1
+          make -j2 install
 
-          git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
-          make -C contrib/mars -j2 install > /dev/null 2>&1
+          git submodule update --init --recursive -- contrib/mars
+          make -C contrib/mars -j2 install
 
       - name: Collect Binary
         run: |
