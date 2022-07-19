@@ -82,12 +82,13 @@ jobs:
             --enable-orafce \
             --enable-ic-proxy \
             --without-quicklz \
+            --enable-mxvector \
             --disable-tap-tests \
             --enable-enterprise \
             --without-mysqlfdw \
             --without-mongofdw \
             --without-licensecheck \
-            --enable-debug-extensions > /dev/null 2>&1
+            --enable-debug-extensions 
 
       - name: Compile
         run: |
