@@ -82,7 +82,7 @@ jobs:
             --enable-orafce \
             --enable-ic-proxy \
             --without-quicklz \
-            --enable-mxvector \
+            --enable-mars3 \
             --disable-tap-tests \
             --enable-enterprise \
             --without-mysqlfdw \
