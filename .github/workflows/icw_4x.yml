@@ -70,8 +70,12 @@ jobs:
           CXXFLAGS="-fdiagnostics-color=always" \
           ./configure \
             --prefix=${PREFIX} \
-            --with-perl \
+            --with-postgresfdw \
+            --enable-enterprise \
+            --without-mysqlfdw \
+            --without-mongofdw \
             --with-pg-hint-plan \
+            --with-perl \
             --with-python \
             --disable-orca \
             --with-openssl \
@@ -81,11 +85,9 @@ jobs:
             --enable-mapreduce \
             --enable-orafce \
             --enable-ic-proxy \
+            --enable-mxvector \
             --without-quicklz \
             --disable-tap-tests \
-            --enable-enterprise \
-            --without-mysqlfdw \
-            --without-mongofdw \
             --without-licensecheck \
             --enable-debug-extensions > /dev/null 2>&1
 
@@ -95,11 +97,11 @@ jobs:
           sudo chown $USER ${PREFIX}
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
+          git submodule update --init -- contrib/mxvector/superfast > /dev/null 2>&1
 
           make -j2 install > /dev/null 2>&1
 
           git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
-          make -C contrib/mars unittest > /dev/null 2>&1
           make -C contrib/mars -j2 install > /dev/null 2>&1
 
       - name: Collect Binary
@@ -278,6 +280,7 @@ jobs:
             --enable-ic-proxy \
             --without-quicklz \
             --disable-tap-tests \
+            --enable-mxvector \
             --enable-debug-extensions > /dev/null 2>&1
 
       - name: Generate Headers
