@@ -101,7 +101,6 @@ jobs:
 
           make -j2 install > /dev/null 2>&1
 
-          git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
           make -C contrib/mars -j2 install > /dev/null 2>&1
 
       - name: Collect Binary
