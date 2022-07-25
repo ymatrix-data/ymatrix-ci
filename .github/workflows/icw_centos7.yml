@@ -1,4 +1,4 @@
-name: MatrixDB_ICW
+name: MatrixDB_ICW_CENTOS7
 
 on:
   schedule:
@@ -26,15 +26,18 @@ jobs:
           psql -c "INSERT INTO pipeline_status(pipeline_id, run_number, run_id, event_dt, status, branch) VALUES(${{env.pipeline_id}}, ${{github.run_number}}, ${{github.run_id}}, now(), 'start', '${{env.matrixdb_ref}}')"
 
   compile:
-    name: compile_ubuntu-20.04
+    name: compile_centos7
     runs-on: ubuntu-20.04
     timeout-minutes: 30
     needs: [ start_pipeline ]
-
     env:
       PREFIX: /usr/local/matrixdb
-      BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
-
+      BIN_TARBALL: /tmp/bin_matrixdb_centos7.tar.gz
+    container:
+      image: matrixdb/centos7_build:latest
+      env:
+        PREFIX: /usr/local/matrixdb
+        BIN_TARBALL: /tmp/bin_matrixdb_centos7.tar.gz
     steps:
       - name: Checkout MatrixDB
         uses: actions/checkout@v2
@@ -44,28 +47,9 @@ jobs:
           token: ${{secrets.PAT}}
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Checkout CI
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          path: ci
-
-      - name: Install Depends
-        run: |
-          sudo ./ci/README.ubuntu.bash
-          sudo apt-get update
-          sudo apt-get install -y libldap2-dev libuv1-dev liblz4-dev
-
-          cd /tmp/
-          pkgname=apache-arrow-apt-source-latest-focal.deb
-          wget https://apache.jfrog.io/artifactory/arrow/ubuntu/$pkgname
-          sudo apt-get install -y ./$pkgname
-          sudo apt-get update
-          sudo apt-get install -y libarrow-dev libparquet-dev
-
       - name: Configure
         run: |
+          source /opt/gcc_env.sh
           CFLAGS="-fdiagnostics-color=always" \
           CXXFLAGS="-fdiagnostics-color=always" \
           ./configure \
@@ -90,21 +74,18 @@ jobs:
             --disable-tap-tests \
             --without-licensecheck \
             --enable-debug-extensions > /dev/null 2>&1
-
       - name: Compile
         run: |
           sudo mkdir -p ${PREFIX}
-          sudo chown $USER ${PREFIX}
+          source /opt/gcc_env.sh
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
           git submodule update --init -- src/backend/utils/matrixdb/superfast > /dev/null 2>&1
           make -j2 install > /dev/null 2>&1
-
       - name: Collect Binary
         run: |
           cd ${PREFIX}
           tar zcf ${BIN_TARBALL} . > /dev/null 2>&1
-
       - name: Setup s3cmd CLI Tool
         uses: dbhao/s3cmd@main
         with:
@@ -113,7 +94,6 @@ jobs:
           access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           host_base: 's3.cn-northwest-1.amazonaws.com.cn'
-
       - name: Upload Binary
         run: |
           s3cmd put ${BIN_TARBALL} s3://${{env.s3_bucket}}/${{env.matrixdb_ref}}/
@@ -183,20 +163,26 @@ jobs:
             regress_options: >-
               --ignore-plans
 
-    name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
+    name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_on_centos7
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
-
     env:
       PREFIX: /usr/local/matrixdb
       TOPDIR: /tmp/build/matrixdb
       BLDWRAP_POSTGRES_CONF_ADDONS: "enable_mergejoin=off enable_nestloop=off ${{ matrix.testsuite.setting }}"
       EXTRA_REGRESS_OPTS: "${{ matrix.testsuite.regress_options }} --exclude-tests=gp_metadata,eagerfree,gp_aggregates_costs,hooktest,workfile/sisc_mat_sort,workfile_mgr_test${{ matrix.testsuite.more_ignore }}"
-      BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
-      LOG_TARBALL: /tmp/log_matrixdb.tar.gz
-
+      BIN_TARBALL: /tmp/bin_matrixdb_centos7.tar.gz
+      LOG_TARBALL: /tmp/log_matrixdb_centos7.tar.gz
+    container:
+      image: matrixdb/centos7_build:latest
+      env:
+        PREFIX: /usr/local/matrixdb
+        TOPDIR: /tmp/build/matrixdb
+        BLDWRAP_POSTGRES_CONF_ADDONS: "enable_mergejoin=off enable_nestloop=off ${{ matrix.testsuite.setting }}"
+        EXTRA_REGRESS_OPTS: "${{ matrix.testsuite.regress_options }} --exclude-tests=gp_metadata,eagerfree,gp_aggregates_costs,hooktest,workfile/sisc_mat_sort,workfile_mgr_test"
+        BIN_TARBALL: /tmp/bin_matrixdb_centos7.tar.gz
+        LOG_TARBALL: /tmp/log_matrixdb_centos7.tar.gz
     steps:
-
       - name: Checkout MatrixDB
         uses: actions/checkout@v2
         with:
@@ -205,31 +191,6 @@ jobs:
           token: ${{secrets.PAT}}
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Checkout CI
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          path: ci
-
-      - name: Install Depends
-        if: runner.os == 'Linux'
-        run: |
-          sudo ./ci/README.ubuntu.bash
-          sudo apt-get update -y
-          sudo apt-get install -y libldap2-dev libuv1-dev liblz4-dev
-          sudo pip3 install argparse psutil pygresql pyyaml
-
-          pkgname=apache-arrow-apt-source-latest-focal.deb
-
-          cd /tmp/
-          wget https://apache.jfrog.io/artifactory/arrow/ubuntu/$pkgname
-
-          sudo apt-get install -y ./$pkgname
-
-          sudo apt-get update
-          sudo apt-get install -y libarrow-dev libparquet-dev
-
       - name: Setup s3cmd CLI Tool
         uses: dbhao/s3cmd@main
         with:
@@ -238,27 +199,31 @@ jobs:
           access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           host_base: 's3.cn-northwest-1.amazonaws.com.cn'
-
       - name: Download Binary
         uses: nick-invision/retry@v2
         with:
           timeout_seconds: 60
           max_attempts: 5
           retry_on: timeout
-          command: s3cmd get --force $(s3cmd ls s3://${{env.s3_bucket}}/${{env.matrixdb_ref}}/ | tail -1 | awk '{ print $4 }')
-
+          command: s3cmd get --force $(s3cmd ls s3://${{env.s3_bucket}}/${{env.matrixdb_ref}}/ | grep centos7 | tail -1 | awk '{ print $4 }')
+      - name: Create runner
+        run: |
+          useradd -m runner
       - name: Extract Binary
         run: |
-          mv bin_matrixdb.tar.gz ${BIN_TARBALL}
-          sudo mkdir -p ${PREFIX}
-          sudo chown $USER ${PREFIX}
+          mv bin_matrixdb_centos7.tar.gz ${BIN_TARBALL}
+          mkdir -p ${PREFIX}
+          chown runner.runner ${PREFIX}
           tar -zxf ${BIN_TARBALL} -C ${PREFIX}
-
-      - name: Configure
+      - name: move code
         run: |
           mkdir -p $(dirname $TOPDIR)
           cp -a ${GITHUB_WORKSPACE} ${TOPDIR}
+          chown -R runner.runner ${TOPDIR}
+      - name: Configure
+        run: |
           cd ${TOPDIR}
+          source /opt/gcc_env.sh
           CFLAGS="-fdiagnostics-color=always" \
           CXXFLAGS="-fdiagnostics-color=always" \
           ./configure \
@@ -278,37 +243,41 @@ jobs:
             --disable-tap-tests \
             --enable-mxvector \
             --enable-debug-extensions > /dev/null 2>&1
-
       - name: Generate Headers
         run: |
           cd ${TOPDIR}
+          source /opt/gcc_env.sh
           make -j2 submake-generated-headers > /dev/null 2>&1
-
       - name: Make Regress.so
         run: |
           cd ${TOPDIR}
+          source /opt/gcc_env.sh
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
-
           make -j2 -C src/test/regress > /dev/null 2>&1
-
+      - name: Make mxvector
+          cd ${TOPDIR}
+          source /opt/gcc_env.sh
+          make -C contrib/mxvector -j2 install
       - name: Setup SSH
+        shell: bash
         run: |
-          sudo chmod 755 ~
-
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          [ -e ~/.ssh/id_rsa ] || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa > /dev/null 2>&1
-          chmod 600 ~/.ssh/id_rsa
-          chmod 644 ~/.ssh/id_rsa.pub
-
-          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-          chmod 600 ~/.ssh/authorized_keys
-
-          ssh-keyscan $(hostname) >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 600 ~/.ssh/known_hosts
-
+          /entrypoint.sh
+          su - runner -c 'bash -ex' <<EOF
+            cd ~
+            pwd
+            ls -l
+            chmod 755 ~
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            [ -e ~/.ssh/id_rsa ] || ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            chmod 644 ~/.ssh/id_rsa.pub
+            cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+            chmod 600 ~/.ssh/authorized_keys
+            ssh-keyscan $(hostname) >> ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+          EOF
       - name: Adjust Ulimit
         run: |
           sudo mkdir -p /etc/security/limits.d
@@ -318,36 +287,35 @@ jobs:
           gpadmin soft nproc 131072
           gpadmin soft nofile 65536
           EOF
-
       - name: Create Cluster
-        uses: nick-invision/retry@v2
-        with:
-          timeout_seconds: 300
-          max_attempts: 3
-          retry_on: any
-          command: |
-            cd ${TOPDIR}
-            . ${PREFIX}/greenplum_path.sh
-            make -C gpAux/gpdemo cluster > /dev/null 2>&1
-
-      - name: Run Tests
-        timeout-minutes: 60
+        shell: bash
         run: |
-          cd ${TOPDIR}
-
-          if [ ${{ matrix.optimizer }} = planner ]; then
-            optimizer=off
-          else
-            optimizer=on
-          fi
-
-          . ${PREFIX}/greenplum_path.sh
-          . gpAux/gpdemo/gpdemo-env.sh
-
-          make -k PGOPTIONS="-c optimizer=${optimizer} -c gp_autostats_mode=on_no_stats" \
-               -C ${{ matrix.testsuite.dir }} \
-               ${{ matrix.testsuite.target }}
-
+          chown -R runner.runner ${TOPDIR}
+          su -p runner -c 'HOME=/home/runner USER=runner bash -ex' <<EOF
+            cd ${TOPDIR}
+            source /opt/gcc_env.sh
+            . ${PREFIX}/greenplum_path.sh
+            make -C gpAux/gpdemo cluster
+          EOF
+      - name: run tests
+        timeout-minutes: 60
+        shell: bash
+        run: |
+          chown -R runner.runner ${TOPDIR}
+          su -p runner -c 'HOME=/home/runner USER=runner bash -ex' <<EOF
+            cd ${TOPDIR}
+            if [ ${{ matrix.optimizer }} = planner ]; then
+              optimizer=off
+            else
+              optimizer=on
+            fi
+            source /opt/gcc_env.sh
+            . ${PREFIX}/greenplum_path.sh
+            . gpAux/gpdemo/gpdemo-env.sh
+            make -k PGOPTIONS="-c optimizer=\${optimizer} -c gp_autostats_mode=on_no_stats" \
+                 -C ${{ matrix.testsuite.dir }} \
+                 ${{ matrix.testsuite.target }}
+          EOF
       - name: Show Diffs
         if: failure()
         run: |
@@ -361,7 +329,6 @@ jobs:
               cat $file
               echo
             done
-
   report_on_success:
     if: ${{ success() }}
     needs: [ start_pipeline, compile, installcheck ]

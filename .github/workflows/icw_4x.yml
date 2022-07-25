@@ -98,11 +98,7 @@ jobs:
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
           git submodule update --init -- contrib/mxvector/superfast > /dev/null 2>&1
-
           make -j2 install > /dev/null 2>&1
-
-          git submodule update --init --recursive -- contrib/mars > /dev/null 2>&1
-          make -C contrib/mars -j2 install > /dev/null 2>&1
 
       - name: Collect Binary
         run: |
