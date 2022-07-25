@@ -256,6 +256,7 @@ jobs:
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
           make -j2 -C src/test/regress > /dev/null 2>&1
       - name: Make mxvector
+        run: |
           cd ${TOPDIR}
           source /opt/gcc_env.sh
           make -C contrib/mxvector -j2 install
