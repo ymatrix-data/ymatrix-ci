@@ -366,6 +366,28 @@ jobs:
               echo
             done
 
+      - name: collect logs
+        if: failure()
+        run: |
+          cd ${TOPDIR}
+
+          . ${PREFIX}/greenplum_path.sh
+          . gpAux/gpdemo/gpdemo-env.sh
+          gpstop -af
+
+          cd gpAux/gpdemo/datadirs
+          find -type d -a '(' -name log -o -name pg_log -o -name gpAdminLogs ')' \
+          | xargs tar zcf ${LOG_TARBALL}
+
+      - name: upload logs
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: log_matrixdb_${{matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
+          path: ${{ env.LOG_TARBALL }}
+          #if-no-files-found: error
+          retention-days: 2
+
   report_on_success:
     if: ${{ success() }}
     needs: [ start_pipeline, compile, installcheck ]
