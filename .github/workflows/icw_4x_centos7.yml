@@ -76,7 +76,7 @@ jobs:
             --enable-debug-extensions > /dev/null 2>&1
       - name: Compile
         run: |
-          sudo mkdir -p ${PREFIX}
+          mkdir -p ${PREFIX}
           source /opt/gcc_env.sh
           git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
           git submodule update --init --recursive -- contrib/pg_hint_plan > /dev/null 2>&1
@@ -281,8 +281,8 @@ jobs:
           EOF
       - name: Adjust Ulimit
         run: |
-          sudo mkdir -p /etc/security/limits.d
-          sudo tee /etc/security/limits.d/99-matrixdb.conf <<EOF
+          mkdir -p /etc/security/limits.d
+          tee /etc/security/limits.d/99-matrixdb.conf <<EOF
           * soft nproc 131072
           * soft nofile 65536
           gpadmin soft nproc 131072
