@@ -129,36 +129,36 @@ jobs:
         os: [ubuntu-20.04]
         optimizer: [planner]
         testsuite:
-          - name: regress
-            dir: src/test/regress
-            target: installcheck
-            setting: >-
-              gp_enable_global_deadlock_detector=off
-              enable_parallel_mode=off
-              enable_partitionwise_join=off
-              enable_partitionwise_aggregate=off
-              log_min_duration_statement=-1
-          - name: isolation2
-            dir: src/test/isolation2
-            target: installcheck
-            setting: >-
-              gp_enable_global_deadlock_detector=off
-              enable_parallel_mode=off
-              enable_partitionwise_join=off
-              enable_partitionwise_aggregate=off
-              log_min_duration_statement=-1
-          - name: gdd
-            dir: src/test/regress
-            target: installcheck
-            more_ignore: ",cursor,index_constraint_naming_partition"
-            setting: >-
-              gp_enable_global_deadlock_detector=on
-              enable_parallel_mode=off
-              enable_partitionwise_join=off
-              enable_partitionwise_aggregate=off
-              log_min_duration_statement=-1
-            regress_options: >-
-              --ignore-plans
+#          - name: regress
+#            dir: src/test/regress
+#            target: installcheck
+#            setting: >-
+#              gp_enable_global_deadlock_detector=off
+#              enable_parallel_mode=off
+#              enable_partitionwise_join=off
+#              enable_partitionwise_aggregate=off
+#              log_min_duration_statement=-1
+#          - name: isolation2
+#            dir: src/test/isolation2
+#            target: installcheck
+#            setting: >-
+#              gp_enable_global_deadlock_detector=off
+#              enable_parallel_mode=off
+#              enable_partitionwise_join=off
+#              enable_partitionwise_aggregate=off
+#              log_min_duration_statement=-1
+#          - name: gdd
+#            dir: src/test/regress
+#            target: installcheck
+#            more_ignore: ",cursor,index_constraint_naming_partition"
+#            setting: >-
+#              gp_enable_global_deadlock_detector=on
+#              enable_parallel_mode=off
+#              enable_partitionwise_join=off
+#              enable_partitionwise_aggregate=off
+#              log_min_duration_statement=-1
+#            regress_options: >-
+#              --ignore-plans
           - name: parallel-mpp
             dir: src/test/regress
             target: installcheck
@@ -183,7 +183,102 @@ jobs:
               log_min_duration_statement=-1
             regress_options: >-
               --ignore-plans
-
+          - name: parallel-mpp-2
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-legacy-2
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              parallel_setup_cost=0
+              parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-mpp-3
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-legacy-3
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              parallel_setup_cost=0
+              parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-mpp-4
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-legacy-4
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              parallel_setup_cost=0
+              parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-mpp-5
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
+          - name: parallel-legacy-5
+            dir: src/test/regress
+            target: installcheck
+            setting: >-
+              gp_enable_global_deadlock_detector=off
+              enable_parallel_mode=on
+              parallel_setup_cost=0
+              parallel_tuple_cost=0
+              enable_partitionwise_join=off
+              enable_partitionwise_aggregate=off
+              log_min_duration_statement=-1
+            regress_options: >-
+              --ignore-plans
     name: ${{ matrix.testsuite.name }}_${{ matrix.optimizer }}_${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
